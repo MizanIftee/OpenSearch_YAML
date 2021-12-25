@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-deployment
+  labels:
+    app: opensearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch
+  template:
+    metadata:
+      labels:
+        app: opensearch
+    spec:
+      initContainers:
+      - name: increase-vm-max-map
+        image: busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      containers:
+      - name: opensearch
+        image: opensearchproject/opensearch:latest
+        env:
+        - name: cluster.name
+          value: opensearch-cluster
+        - name: discovery.seed_hosts
+          value: opensearch-service,opensearch2-service
+        - name: cluster.initial_master_nodes
+          value: opensearch-service,opensearch2-service
+        - name: bootstrap.memory_lock
+          value: "true"
+        - name: OPENSEARCH_JAVA_OPTS
+          value: "-Xms512m -Xmx512m"
+        ports:
+        - containerPort: 9200      
+        - containerPort: 9600
+      nodeSelector:
+        env: node1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch-service
+  labels:
+    app: opensearch
+spec:
+  type: ClusterIP
+  selector:
+    app: opensearch
+  ports:
+  - port: 9200
+    name: service-running
+    protocol: TCP
+    targetPort: 9200
+  - port: 9600
+    name: service-performance
+    protocol: TCP
+    targetPort: 9600
+ 
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch2-deployment
+  labels:
+    app: opensearch2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch2
+  template:
+    metadata:
+      labels:
+        app: opensearch2
+    spec:
+      initContainers:
+      - name: increase-vm-max-map
+        image: busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      containers:
+      - name: opensearch2
+        image: opensearchproject/opensearch:latest
+        env:
+        - name: cluster.name
+          value: opensearch-cluster
+        - name: discovery.seed_hosts
+          #value: '["node1.mizan.com", "node2.mizan.com"]'
+          value: opensearch-service,opensearch2-service
+        - name: cluster.initial_master_nodes
+          value: opensearch-service,opensearch2-service
+        - name: bootstrap.memory_lock
+          value: "true"
+        - name: OPENSEARCH_JAVA_OPTS
+          value: "-Xms512m -Xmx512m"
+        ports:
+        - containerPort: 9200
+        - containerPort: 9600
+      nodeSelector:
+        env: node2
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch2-service
+  labels:
+    app: opensearch2
+spec:
+  type: ClusterIP
+  selector:
+    app: opensearch2
+  ports:
+  - port: 9200
+    name: service2-running
+    protocol: TCP
+    targetPort: 9200
+  - port: 9600
+    name: service2-performance
+    protocol: TCP
+    targetPort: 9600

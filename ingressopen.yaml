@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-opensearch
+spec:
+  rules:
+  - host: "node1.mizan.com"
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: opensearch-service
+            port:
+              number: 9200
+  - host: "node2.mizan.com"
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: opensearch2-service
+            port:
+              number: 9200
