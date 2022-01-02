@@ -27,9 +27,9 @@ spec:
         - name: cluster.name
           value: opensearch-cluster
         - name: discovery.seed_hosts
-          value: opensearch-service,opensearch2-service
+          value: opensearch-service,opensearch2-service,opensearch3-service
         - name: cluster.initial_master_nodes
-          value: opensearch-service,opensearch2-service
+          value: opensearch-service,opensearch2-service,opensearch3-service
         - name: bootstrap.memory_lock
           value: "true"
         - name: OPENSEARCH_JAVA_OPTS
@@ -92,9 +92,9 @@ spec:
           value: opensearch-cluster
         - name: discovery.seed_hosts
           #value: '["node1.mizan.com", "node2.mizan.com"]'
-          value: opensearch-service,opensearch2-service
+          value: opensearch-service,opensearch2-service,opensearch3-service
         - name: cluster.initial_master_nodes
-          value: opensearch-service,opensearch2-service
+          value: opensearch-service,opensearch2-service,opensearch3-service
         - name: bootstrap.memory_lock
           value: "true"
         - name: OPENSEARCH_JAVA_OPTS
@@ -125,3 +125,108 @@ spec:
     name: service2-performance
     protocol: TCP
     targetPort: 9600
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch3-deployment
+  labels:
+    app: opensearch3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch3
+  template:
+    metadata:
+      labels:
+        app: opensearch3
+    spec:
+      initContainers:
+      - name: increase-vm-max-map
+        image: busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      containers:
+      - name: opensearch3
+        image: opensearchproject/opensearch:latest
+        env:
+        - name: cluster.name
+          value: opensearch-cluster
+        - name: discovery.seed_hosts
+          #value: '["node1.mizan.com", "node2.mizan.com"]'
+          value: opensearch-service,opensearch2-service,opensearch3-service
+        - name: cluster.initial_master_nodes
+          value: opensearch-service,opensearch2-service,opensearch3-service
+        - name: bootstrap.memory_lock
+          value: "true"
+        - name: OPENSEARCH_JAVA_OPTS
+          value: "-Xms512m -Xmx512m"
+        ports:
+        - containerPort: 9200
+        - containerPort: 9600
+      nodeSelector:
+        env: node3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch3-service
+  labels:
+    app: opensearch3
+spec:
+  type: ClusterIP
+  selector:
+    app: opensearch3
+  ports:
+  - port: 9200
+    name: service3-running
+    protocol: TCP
+    targetPort: 9200
+  - port: 9600
+    name: service3-performance
+    protocol: TCP
+    targetPort: 9600
+    
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-opensearch
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: opensearch-service
+            port:
+              number: 9200
+  - host:
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: opensearch2-service
+            port:
+              number: 9200
+  - host:
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: opensearch3-service
+            port:
+              number: 9200

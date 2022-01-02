@@ -2,9 +2,11 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress-opensearch
+  annotations:
+    kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  - host: "node1.mizan.com"
+  - host:
     http:
       paths:
       - pathType: Prefix
@@ -14,7 +16,7 @@ spec:
             name: opensearch-service
             port:
               number: 9200
-  - host: "node2.mizan.com"
+  - host:
     http:
       paths:
       - pathType: Prefix
@@ -22,5 +24,15 @@ spec:
         backend:
           service:
             name: opensearch2-service
+            port:
+              number: 9200
+  - host:
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: opensearch3-service
             port:
               number: 9200
